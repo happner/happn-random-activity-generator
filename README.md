@@ -2,10 +2,16 @@ random activity generator
 -------------------------
 *takes a happn client at construction time, and performs random activities against the clients happn server. highly configurable - allows for the percentage of gets, sets, removes and ons to be configured. For ons, gets and removes some initial data needs to be created - this is also configurable*
 
+quickstart:
+-----------
+```bash
+npm install happn-random-activity-generator --save-dev
+```
+
 configuration:
 --------------
 ```javascript
-var RandomActivity = require('./random_activity_generator');
+var RandomActivity = require('happn-random-activity-generator');
 
 //the options are the second parameter - the amounts are the default amounts
 generator = new RandomActivity(happnClientInstance, {
@@ -28,7 +34,7 @@ start, stop and verify:
 *when you start the random activity, the timespan it takes to generate the initial data is stored - this is so that when you stop the activity, the system waits for that timespan to actually stop - this allows for accuracy that is not affected by the initialization procedure*
 ```javascript
 
-var happn = require('../../lib/index')
+var happn = require('happn')
 var service = happn.service;
 var happn_client = happn.client;
 
@@ -42,7 +48,7 @@ service.create(function(e, instance){
 		clientInstance = cli;
 
 		//instantiate the generator here:
-		var RandomActivity = require('./random_activity_generator');
+		var RandomActivity = require('happn-random-activity-generator');
 		generator = new RandomActivity(clientInstance);
 
 		//start random activity - we use a key "test" to store the generated log data
@@ -83,7 +89,7 @@ generator.generateActivityStart("test", function(){
 	setTimeout(function(){
 		generator.generateActivityEnd("test", function(aggregatedLog){
 
-			var RandomActivity = require('./random_activity_generator');
+			var RandomActivity = require('happn-random-activity-generator');
 			generator2 = new RandomActivity(clientInstance);
 			generator2.replay(generator, "test", function(e, replayLog){
 
