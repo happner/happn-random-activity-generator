@@ -31,10 +31,12 @@ function RandomActivityGenerator(happnClient, opts) {
     opts.initialDataGetCount = 50;//100 items that can be .get
 
   if (!opts.randomDataSize)
-    opts.randomDataSize = 3;//multiplies 32 length string, so 320 characters
+    opts.randomDataSize = 3;//multiplies 32 length string, so 96 characters
 
   if (!opts.onTimeout)
     opts.onTimeout = 100;//100 milliseconds
+
+  this.opts = opts;
 
   this.__client = happnClient;
 
@@ -84,9 +86,7 @@ function RandomActivityGenerator(happnClient, opts) {
 
   this.__getRandomPathFromInitial = function(key, operationType){
     var list = this.__operationInitialData[key][operationType];
-    var randomIndex = Math.floor(Math.random() * list.length);
-
-    return list[randomIndex].path;
+    return this.__selectRandomArrayItem(list).path;
   }
 
   this.__generateRandomData = function(key, operationType){
@@ -102,15 +102,24 @@ function RandomActivityGenerator(happnClient, opts) {
     return {key:key, data:shortid.generate(), bigData:bigData};
   }
 
+  this.__selectRandomArrayItem = function(array){
+    return array[Math.floor(Math.random() * array.length)];
+  }
+
   this.__generateRandomPath = function(key, operationType){
 
-     var _this = this;
+    var _this = this;
 
     if (["remove","get","on"].indexOf(operationType) > -1){
       return _this.__getRandomPathFromInitial(key, operationType);
     }
 
-    return "/random_activity_generator/" + key + "/" +  shortid.generate();
+    var path = "/random_activity_generator/" + key + "/" +  shortid.generate();
+
+    if (_this.opts.pathPrefix && _this.opts.pathPrefix.length > 0)
+      path = _this.__selectRandomArrayItem(_this.opts.pathPrefix) + path;
+
+    return path;
   }
 
   this.__generateInitialGroup = function(key, opType, opCount, callback){
@@ -182,6 +191,9 @@ function RandomActivityGenerator(happnClient, opts) {
   this.__doOperation = function(key, operationLogItem, callback, initial){
 
     var _this = this;
+
+    if (_this.opts.verbose)
+      console.log('doing operation:', key, operationLogItem);
 
     var operationDone = function(key, operationLogItem, response, e){
 
@@ -368,9 +380,9 @@ function RandomActivityGenerator(happnClient, opts) {
   this.verify = function(callback, key){
     var _this = this;
 
-    this.__verifyLog[key] = {"on":0, "get":0, "remove":0, "set":0};
-
     if (!key)key = 'default';
+
+    this.__verifyLog[key] = {"on":0, "get":0, "remove":0, "set":0};
 
     var operationActivities = _this.__operationLog[key];
     async.eachSeries(operationActivities, _this.verifyItem.bind(_this), function(e){
@@ -383,7 +395,15 @@ function RandomActivityGenerator(happnClient, opts) {
 
     var _this = this;
 
+    if (typeof key == 'function'){
+      callback = key;
+      key = null;
+    }
+
     if (!key)key = 'default';
+
+    if (!generator.__operationLogAggregated[key])
+      return callback(new Error("invalid key: " + key));
 
     if (generator.__operationLogAggregated[key].mode == "daemon")
       return callback(new Error("invalid mode daemon was used, you need to record for replay in default mode"));

@@ -4,31 +4,52 @@ var service = happn.service;
 var happn_client = happn.client;
 var serviceInstance;
 var clientInstance;
+var testId = require('shortid').generate();
+var RandomActivity = require('../index');
+var fs = require('fs');
 
 describe('random_activity_generator', function() {
 
 	var generator;
+	var test_file = __dirname + '/test-resources/c7/test/' + testId + '1.test';
+
+	var serviceConfig1 =  {
+	    secure:true,
+	    services: {
+	      data: {
+	        path: './services/data_embedded/service.js',
+	        config:{
+	           filename:test_file
+	        }
+	      }
+	    }
+	  }
 
 	this.timeout(10000);
 
 	before('instantiates the generator', function (callback) {
 
-		service.create(function(e, instance){
+		service.create(serviceConfig1,function(e, instance){
 			if (e) return callback(e);
 			serviceInstance = instance;
 
-			happn_client.create(function(e, cli){
+			happn_client.create({config:{username:'_ADMIN',password:'happn'}},function(e, cli){
 
 				if (e) return callback(e);
 				clientInstance = cli;
-				var RandomActivity = require('../index');
-
 				generator = new RandomActivity(clientInstance);
 				callback();
 			});
 		})
 
 	});
+
+	after('it shuts down the test dbs, and unlinks their file', function(callback){
+	    serviceInstance.stop(function(e){
+	      fs.unlinkSync(test_file);
+	      callback();
+	    });
+	  });
 
 	it('initializes the activity log', function (callback) {
 
@@ -323,6 +344,40 @@ describe('random_activity_generator', function() {
 				});
 			}, 1000);
 		});
+	});
+
+	it('return random items from an array', function (callback) {
+
+		var array = [0,1,2,3,4,5,6,7,8,9];
+
+		var found = {};
+
+		while(Object.keys(found).length < 10){
+			var item = generator.__selectRandomArrayItem(array);
+			found[generator.__selectRandomArrayItem(array)] = true;
+		}
+
+		callback();
+
+	});
+
+	it('can add random prefixes to the test path', function (callback) {
+		var generator1 = new RandomActivity(clientInstance, {pathPrefix:['/testpathprefix1/' + testId, '/testpathprefix2/' + testId]});
+
+		generator1.generateActivityStart("test", function(){
+			setTimeout(function(){
+				generator1.generateActivityEnd("test", function(aggregatedLog){
+					clientInstance.get('/testpathprefix1/' + testId + "/*", function(e, results){
+						expect(results.length > 0).to.be(true);
+						clientInstance.get('/testpathprefix2/' + testId + "/*", function(e, results){
+							expect(results.length > 0).to.be(true);
+							callback();
+						});
+					});
+				});
+			}, 2000);
+		});
+
 	});
 
 });
